@@ -19,7 +19,7 @@
     import MaterialTextarea from "../../../inputs/MaterialTextarea.svelte"
     import MaterialTextInput from "../../../inputs/MaterialTextInput.svelte"
     import MaterialToggleSwitch from "../../../inputs/MaterialToggleSwitch.svelte"
-    import WebSearch from "./WebSearch.svelte"
+    import SongSearch from "./SongSearch.svelte"
 
     const changeValue = (e: any, key = "text") => {
         values[key] = e.target?.value || e.detail || ""
@@ -162,7 +162,7 @@
     // SHORTCUTS
 
     function keydown(e: KeyboardEvent) {
-        if (e.shiftKey || e.altKey) return
+        if (e.isComposing || e.keyCode === 229 || e.shiftKey || e.altKey) return
 
         const ctrl = e.ctrlKey || e.metaKey
 
@@ -175,6 +175,8 @@
         }
 
         if (e.key === "Enter") {
+            // Keep name entry in place, including the Enter used to confirm Chinese input.
+            if (!ctrl && e.target?.closest?.("#name")) return
             if (!ctrl && e.target?.closest?.(".edit") && !document.activeElement?.closest?.("#name")) return
 
             e.preventDefault()
@@ -241,5 +243,5 @@
         <T id="timer.create" />
     </MaterialButton>
 {:else if selectedOption === "web"}
-    <WebSearch query={values.name} on:update={updateLyrics} />
+    <SongSearch query={values.name} on:update={updateLyrics} />
 {/if}

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte"
+    import { DEFAULT_WORSHIP_TOOL_URL } from "../../../../types/WorshipTool"
     import type { ContentProviderId } from "../../../../electron/contentProviders/base/types"
     import { Main } from "../../../../types/IPC/Main"
     import { requestMain, sendMain } from "../../../IPC/main"
@@ -219,6 +220,10 @@
     let obsPort = $obsData.port || 4455
     $: if (obsIP || obsPort) obsData.update((d) => ({ ...d, ip: obsIP, port: obsPort }))
 </script>
+
+<div style="margin-bottom: 16px;">
+    <MaterialTextInput label="亞太希望工程歌曲管理系統伺服器網址" value={$special.worshipToolUrl ?? DEFAULT_WORSHIP_TOOL_URL} placeholder={DEFAULT_WORSHIP_TOOL_URL} on:input={(event) => special.update((settings) => ({ ...settings, worshipToolUrl: event.detail.trim() }))} />
+</div>
 
 {#each servers as server}
     {@const disabled = server.id === "companion" ? $serverData?.companion?.enabled !== true : server.enabledByDefault ? $disabledServers[server.id] === true : $disabledServers[server.id] !== false}

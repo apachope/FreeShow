@@ -1,3 +1,4 @@
+import type { WorshipToolRequest, WorshipToolResponse } from "../WorshipTool"
 import type { Display } from "electron"
 import type { ExifData } from "exif"
 import type { Stats } from "fs"
@@ -127,6 +128,7 @@ export enum Main {
     CLOSE_MIDI = "CLOSE_MIDI",
     GET_LYRICS = "GET_LYRICS",
     SEARCH_LYRICS = "SEARCH_LYRICS",
+    WORSHIP_TOOL = "WORSHIP_TOOL",
     RECORDER = "RECORDER",
     RESTORE = "RESTORE",
     SYSTEM_OPEN = "SYSTEM_OPEN",
@@ -245,6 +247,7 @@ export interface MainSendPayloads {
     [Main.RECEIVE_MIDI]: any
     [Main.CLOSE_MIDI]: { id: string }
     [Main.GET_LYRICS]: { song: LyricSearchResult }
+    [Main.WORSHIP_TOOL]: WorshipToolRequest
     [Main.SEARCH_LYRICS]: { artist: string; title: string }
     [Main.RESTORE]?: { path: string }
     [Main.RECORDER]: { blob: ArrayBuffer; name: string; path?: string }
@@ -368,6 +371,7 @@ export interface MainReturnPayloads {
     [Main.GET_MIDI_OUTPUTS]: { name: string }[]
     [Main.GET_MIDI_INPUTS]: { name: string }[]
     [Main.GET_LYRICS]: Promise<{ lyrics: string; source: string; title: string; artist: string }>
+    [Main.WORSHIP_TOOL]: Promise<WorshipToolResponse>
     [Main.SEARCH_LYRICS]: Promise<LyricSearchResult[]>
     [Main.GET_SIMILAR]: { path: string; name: string }[]
     [Main.RESTORE_CLOUD_BACKUP]: Promise<{ success: boolean; error?: string }>
