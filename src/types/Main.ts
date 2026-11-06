@@ -399,6 +399,7 @@ export interface ErrorLog {
 }
 
 export type Popups =
+    | "worship_tool_import"
     | "initialize"
     | "confirm"
     | "custom_text"

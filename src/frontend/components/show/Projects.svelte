@@ -560,6 +560,19 @@
 
                     <div class="group-spacer" />
 
+                    {#if !readOnly}
+                        <MaterialButton
+                            variant="outlined"
+                            icon="import"
+                            on:click={() => {
+                                activePopup.set("worship_tool_import")
+                                addMenuOpen = false
+                            }}
+                        >
+                            匯入歌曲管理系統歌單
+                        </MaterialButton>
+                    {/if}
+
                     <MaterialButton variant="outlined" icon="import" title="actions.import: formats.project" on:click={importProject} white>
                         <T id="actions.import" />
 

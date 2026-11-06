@@ -56,3 +56,33 @@ describe("worship-tool integration", () => {
         expect((await requestWorshipTool({ baseUrl: "https://example.org", query: "歌曲" })).error).toContain(message)
     })
 })
+
+describe("playlist API adapter", () => {
+    const event = { id: 1, name: "主日", date: "2026-11-08", revision: "event-v1", sections: [{ id: 1, name: "敬拜", order: 1, songs: [{ entry_id: 1, order: 1, key_override: "G", song: { ...song, revision: "song-v1" } }] }] }
+    it("loads paginated playlist summaries", async () => {
+        const summary = { id: 1, name: "主日", date: "2026-11-08", song_count: 2 }
+        get.mockResolvedValue({ data: { results: [summary], page: 2, pages: 3 } })
+        expect(await requestWorshipTool({ baseUrl: "https://example.org/", resource: "events", page: 2 })).toEqual({ events: [summary], page: 2, pages: 3 })
+        expect(get.mock.calls[0][0]).toBe("https://example.org/api/v1/events/")
+    })
+    it("loads a full playlist snapshot", async () => {
+        get.mockResolvedValue({ data: { event } })
+        expect(await requestWorshipTool({ baseUrl: "https://example.org", resource: "events", eventId: 1 })).toEqual({ event })
+    })
+    it("rejects wrong playlist IDs or invalid full lyrics", async () => {
+        get.mockResolvedValueOnce({ data: { event: { ...event, id: 2 } } })
+        expect((await requestWorshipTool({ baseUrl: "https://example.org", resource: "events", eventId: 1 })).error).toBeTruthy()
+        get.mockResolvedValueOnce({ data: { event: { ...event, sections: [{ ...event.sections[0], songs: [{ ...event.sections[0].songs[0], song: { ...song, content: "" } }] }] } } })
+        expect((await requestWorshipTool({ baseUrl: "https://example.org", resource: "events", eventId: 1 })).error).toBeTruthy()
+    })
+    it("rejects duplicate entry identities", async () => {
+        get.mockResolvedValue({ data: { event: { ...event, sections: [{ ...event.sections[0], songs: [event.sections[0].songs[0], event.sections[0].songs[0]] }] } } })
+        expect((await requestWorshipTool({ baseUrl: "https://example.org", resource: "events", eventId: 1 })).error).toBeTruthy()
+    })
+    it("rejects invalid page and IDs before sending a request", async () => {
+        for (const input of [{ eventId: -1 }, { page: 0 }]) {
+            expect((await requestWorshipTool({ baseUrl: "https://example.org", resource: "events", ...input })).error).toBeTruthy()
+        }
+        expect(get).not.toHaveBeenCalled()
+    })
+})

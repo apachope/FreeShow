@@ -60,6 +60,8 @@
                                         {translateText($popupData.popupTitle)}
                                     {:else if popupId === "new_update"}
                                         <T id="about.new_update" />: <span style="color: var(--secondary);">v{$popupData.latestVersion}</span>
+                                    {:else if popupId === "worship_tool_import"}
+                                        匯入亞太希望工程歌曲管理系統歌單
                                     {:else if popupId === "pco_picker"}
                                         Planning Center
                                     {:else if popupId === "audio_effect" && $popupData?.effect}

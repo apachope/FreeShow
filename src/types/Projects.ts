@@ -1,9 +1,11 @@
+import type { WorshipToolProjectSource } from "./WorshipTool"
 import type { ShowType, Timeline } from "./Show"
 
 export interface Projects {
     [key: string]: Project
 }
 export interface Project {
+    worshipTool?: WorshipToolProjectSource
     id?: string
     deleted?: boolean // cloud sync deleted
     name: string

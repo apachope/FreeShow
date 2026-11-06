@@ -1,5 +1,6 @@
 <script lang="ts">
     import { uid } from "uid"
+    import type { WorshipToolSongSource } from "../../../../../types/WorshipTool"
     import { ShowObj } from "../../../../classes/Show"
     import { convertText, getQuickExample, trimNameFromString } from "../../../../converters/txt"
     import { activePopup, activeProject, activeShow, categories, drawerTabsData, formatNewShow, quickTextCache, shows, special, splitLines } from "../../../../stores"
@@ -28,6 +29,7 @@
         quickTextCache.set({ name: values.name, text: values.text })
     }
     let storedCache = $quickTextCache.text.length > 20 || $quickTextCache.fromSearch
+    let worshipToolSource: WorshipToolSongSource | undefined
     let values = {
         text: storedCache ? $quickTextCache.text : "",
         name: storedCache ? $quickTextCache.name : "",
@@ -120,6 +122,7 @@
             values.name = data.title
         }
 
+        worshipToolSource = data.worshipTool
         values.text = data.lyrics
 
         const metadata: string[] = []
@@ -146,7 +149,7 @@
         let category = selectedCategory?.id?.length ? selectedCategory.id : null
 
         if (sections.length) {
-            convertText({ name: values.name, category, text, origin: values.origin })
+            convertText({ name: values.name, category, text, origin: values.origin, worshipTool: worshipToolSource })
         } else {
             let show = new ShowObj(false, category)
             show.name = checkName(values.name)

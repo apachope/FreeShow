@@ -3,6 +3,7 @@
     import { Main } from "../../../../../types/IPC/Main"
     import { DEFAULT_WORSHIP_TOOL_URL, type WorshipToolSong } from "../../../../../types/WorshipTool"
     import { requestMain } from "../../../../IPC/main"
+    import { worshipToolSongSource } from "../../../../utils/worshipToolImportPlan"
     import { special } from "../../../../stores"
     import MaterialButton from "../../../inputs/MaterialButton.svelte"
     import MaterialTextInput from "../../../inputs/MaterialTextInput.svelte"
@@ -50,7 +51,7 @@
             error = result?.error || "無法取得歌詞，請重試。"
             return
         }
-        dispatch("update", { title: result.song.name, lyrics: result.song.content, source: "亞太希望工程歌曲管理系統" })
+        dispatch("update", { title: result.song.name, lyrics: result.song.content, source: "亞太希望工程歌曲管理系統", worshipTool: worshipToolSongSource(result.song, baseUrl) })
     }
 </script>
 

@@ -1,3 +1,4 @@
+import WorshipToolImport from "../components/show/WorshipToolImport.svelte"
 import { onDestroy, type ComponentType } from "svelte"
 import { get } from "svelte/store"
 import type { Popups } from "../../types/Main"
@@ -101,6 +102,7 @@ export const popups: { [key in Popups]: ComponentType } = {
     import: Import,
     export: Export,
     show: CreateShow,
+    worship_tool_import: WorshipToolImport,
     delete_show: DeleteShow,
     select_show: SelectShow,
     select_template: SelectTemplate,
