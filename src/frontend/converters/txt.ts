@@ -176,7 +176,14 @@ export function convertText({ name = "", origin = "", category = null, text, noF
 
     if (plainNotes) show.layouts[layoutID].notes = plainNotes
 
-    if (worshipTool) show.quickAccess = { ...show.quickAccess, worshipTool }
+    if (worshipTool)
+        show.quickAccess = {
+            ...show.quickAccess,
+            worshipTool: {
+                ...worshipTool,
+                ...(Number.isInteger(maxLines) && maxLines > 0 ? { layouts: { ...worshipTool.layouts, [String(maxLines)]: layoutID } } : {})
+            }
+        }
 
     const showId = uid()
     if (returnData) return { id: showId, show }
