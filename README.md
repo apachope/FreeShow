@@ -105,9 +105,14 @@ Download the corresponding artifact from the completed workflow run's **Artifact
 section. Artifacts are retained for 14 days. These builds use `release:local`, are
 unsigned and not notarized. Windows and macOS may display security prompts when
 opening them. After all three builds succeed, the workflow publishes a GitHub
-pre-release tagged `v<version>` with all five installer/archive files under
+release (not marked as a pre-release) tagged `v<version>` with all five installer/archive files under
 **Releases → Assets**. Release assets remain available after Actions artifacts
 expire. Publishing uses the built-in `GITHUB_TOKEN`; no signing secrets are needed.
+Mac ZIPs and disk images are created with native `ditto` and `hdiutil`. ZIPs are
+tested, and DMGs are checksum-verified and mounted read-only to check the
+application before uploading. SHA-256 manifests are recorded before artifact
+upload and checked after download in the publishing job. A failed check blocks
+publication.
 Re-running a release replaces assets under the same tag. The **Build** workflow
 remains a manual Windows/macOS/Linux compilation check without installers.
 
