@@ -51,6 +51,8 @@ export interface WorshipToolEvent {
 }
 
 export interface WorshipToolSongSource {
+    layouts?: Record<string, string>
+    maxLines?: number
     server: string
     songId: number
     revision: string
@@ -58,6 +60,7 @@ export interface WorshipToolSongSource {
 }
 
 export interface WorshipToolProjectSource {
+    maxLines?: number
     server: string
     eventId: number
     revision: string

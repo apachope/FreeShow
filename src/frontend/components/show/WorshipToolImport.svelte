@@ -9,6 +9,7 @@
     import { openProject } from "./project"
     import MaterialButton from "../inputs/MaterialButton.svelte"
     import MaterialDropdown from "../inputs/MaterialDropdown.svelte"
+    import MaterialNumberInput from "../inputs/MaterialNumberInput.svelte"
 
     const dispatch = createEventDispatcher()
     const baseUrl = $special.worshipToolUrl ?? DEFAULT_WORSHIP_TOOL_URL
@@ -20,7 +21,8 @@
     let pages = 1
     let generation = 0
     let copies: number[] = []
-    $: plan = event ? buildWorshipToolImportPlan(event, baseUrl, $shows, $projects) : null
+    let maxLines = 2
+    $: plan = event ? buildWorshipToolImportPlan(event, baseUrl, $shows, $projects, maxLines) : null
     onDestroy(() => generation++)
     onMount(() => loadEvents(1))
 
@@ -63,14 +65,17 @@
         close()
     }
 
-    function confirm() {
+    async function confirm() {
         if (!event || loading) return
+        const current = ++generation
         loading = true
         error = ""
         try {
-            importWorshipToolEvent(event, baseUrl, copies)
+            await importWorshipToolEvent(event, baseUrl, copies, maxLines, () => current !== generation)
+            if (current !== generation) return
             close()
         } catch (failure) {
+            if (current !== generation) return
             error = failure instanceof Error ? failure.message : "匯入失敗，請重試。"
             loading = false
         }
@@ -84,7 +89,23 @@
         <MaterialButton disabled={loading} on:click={() => (event ? preview(event.id) : loadEvents(page))}>重新載入</MaterialButton>
     {/if}
     {#if event}
-        <h4 class="playlist-title">{event.date} {event.name}</h4>
+        <div class="preview-heading">
+            <h4 class="playlist-title">{event.date} {event.name}</h4>
+            <div class="line-limit">
+                <MaterialNumberInput
+                    label="每頁最多行數"
+                    value={maxLines}
+                    min={1}
+                    max={100}
+                    maxDecimals={0}
+                    disabled={loading}
+                    on:change={(event) => {
+                        maxLines = Number(event.detail)
+                        copies = []
+                    }}
+                />
+            </div>
+        </div>
         <div class="preview">
             {#each event.sections as section, sectionIndex}
                 <section class="preview-section">
@@ -100,8 +121,9 @@
                 </section>
             {/each}
         </div>
+
         {#if plan?.existingProjectId}
-            <p>這份歌單已匯入，將開啟既有專案。後續歌單變更的同步功能尚未提供。</p>
+            <p>這份歌單已使用相同行數匯入，將開啟既有專案。</p>
             <MaterialButton disabled={loading} on:click={openExisting}>開啟既有專案</MaterialButton>
         {:else}
             {#each plan?.songs || [] as item}
@@ -118,7 +140,7 @@
                 {/if}
             {/each}
             <p class="import-summary">新增 {plan?.songs.filter((item) => item.status === "new").length || 0} 首、重用 {plan?.songs.filter((item) => item.status === "reuse").length || 0} 首、來源變更 {plan?.songs.filter((item) => item.status === "changed").length || 0} 首。</p>
-            <MaterialButton disabled={loading || !plan?.songs.length} on:click={confirm}>匯入為新專案</MaterialButton>
+            <MaterialButton disabled={loading || !plan?.songs.length || !Number.isInteger(maxLines) || maxLines < 1 || maxLines > 100} on:click={confirm}>匯入為新專案</MaterialButton>
         {/if}
         <MaterialButton
             disabled={loading}
@@ -151,6 +173,12 @@
     .import-dialog {
         width: 100%;
         color: var(--text);
+    }
+    .import-dialog > p {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        overflow: visible;
+        line-height: 1.5;
     }
     footer {
         display: flex;
@@ -190,8 +218,18 @@
         background: var(--primary-darker);
         border-radius: 6px;
     }
+    .preview-heading {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 11em;
+        align-items: center;
+        gap: 24px;
+        margin-bottom: 20px;
+    }
+    .line-limit {
+        min-width: 0;
+    }
     .playlist-title {
-        margin: 0 0 12px;
+        margin: 0;
         overflow-wrap: anywhere;
     }
     .preview-section h4 {
@@ -221,5 +259,14 @@
     .import-summary {
         margin: 16px 0;
         line-height: 1.5;
+    }
+    @media (max-width: 640px) {
+        .preview-heading {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        .line-limit {
+            width: min(100%, 14em);
+        }
     }
 </style>
