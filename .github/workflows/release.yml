@@ -62,14 +62,16 @@ jobs:
             files: dist/*.exe
           - name: macOS Intel
             os: macos-15-intel
-            args: --mac --x64
+            args: --mac --dir --x64
+            arch: x64
             artifact: FreeShow-macOS-x64
             files: |
               dist/*.dmg
               dist/*.zip
           - name: macOS Apple Silicon
             os: macos-15
-            args: --mac --arm64
+            args: --mac --dir --arm64
+            arch: arm64
             artifact: FreeShow-macOS-arm64
             files: |
               dist/*.dmg
@@ -106,11 +108,41 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: npm run release:local -- ${{ matrix.args }}
 
+      - name: Create and verify macOS disk image
+        if: runner.os == 'macOS'
+        env:
+          RELEASE_VERSION: ${{ needs.version.outputs.version }}
+          RELEASE_ARCH: ${{ matrix.arch }}
+        shell: bash
+        run: bash scripts/createMacDmg.sh "$RELEASE_VERSION" "$RELEASE_ARCH"
+
+      - name: Record installer checksums
+        env:
+          ARTIFACT_NAME: ${{ matrix.artifact }}
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const crypto = require('crypto');
+          (async () => {
+            const lines = [];
+            for (const name of fs.readdirSync('dist').filter(name => /\.(exe|dmg|zip)$/.test(name))) {
+              const hash = crypto.createHash('sha256');
+              for await (const chunk of fs.createReadStream(`dist/${name}`)) hash.update(chunk);
+              lines.push(`${hash.digest('hex')}  ${name}`);
+            }
+            if (!lines.length) throw new Error('No installers found');
+            fs.writeFileSync(`dist/${process.env.ARTIFACT_NAME}.sha256`, lines.join('\n') + '\n');
+          })().catch(error => { console.error(error); process.exit(1); });
+          NODE
+
       - name: Upload installers
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}-${{ needs.version.outputs.version }}
-          path: ${{ matrix.files }}
+          path: |
+            ${{ matrix.files }}
+            dist/*.sha256
           if-no-files-found: error
           retention-days: 14
 
@@ -128,6 +160,15 @@ jobs:
           pattern: FreeShow-*-${{ needs.version.outputs.version }}
           path: installers
           merge-multiple: true
+
+      - name: Verify downloaded installer checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd installers
+          for manifest in FreeShow-Windows-x64.sha256 FreeShow-macOS-x64.sha256 FreeShow-macOS-arm64.sha256; do
+            sha256sum --check "$manifest"
+          done
 
       - name: Publish installers to Releases
         env:
@@ -152,8 +193,8 @@ jobs:
           These installers are unsigned and not notarized; your operating system may display security prompts.
           NOTES
           if ! gh release view "$tag" > /dev/null 2>&1; then
-            gh release create "$tag" --target "$RELEASE_SHA" --title "FreeShow $RELEASE_VERSION" --notes-file release-notes.md --prerelease --draft
+            gh release create "$tag" --target "$RELEASE_SHA" --title "FreeShow $RELEASE_VERSION" --notes-file release-notes.md --draft
           fi
           gh release upload "$tag" "${files[@]}" --clobber
-          gh release edit "$tag" --draft=false --prerelease
+          gh release edit "$tag" --draft=false --prerelease=false
           gh release view "$tag" --json url --jq '.url' >> "$GITHUB_STEP_SUMMARY"
