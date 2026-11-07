@@ -1,8 +1,9 @@
 <script lang="ts">
     import { uid } from "uid"
+    import type { WorshipToolSongSource } from "../../../../../types/WorshipTool"
     import { ShowObj } from "../../../../classes/Show"
     import { convertText, getQuickExample, trimNameFromString } from "../../../../converters/txt"
-    import { activePopup, activeProject, activeShow, categories, drawerTabsData, formatNewShow, quickTextCache, shows, special, splitLines } from "../../../../stores"
+    import { activePopup, activeProject, activeShow, categories, drawerTabsData, formatNewShow, quickTextCache, shows, special } from "../../../../stores"
     import { newToast } from "../../../../utils/common"
     import { translateText } from "../../../../utils/language"
     import { getNormalizedKey } from "../../../../utils/shortcuts"
@@ -19,7 +20,7 @@
     import MaterialTextarea from "../../../inputs/MaterialTextarea.svelte"
     import MaterialTextInput from "../../../inputs/MaterialTextInput.svelte"
     import MaterialToggleSwitch from "../../../inputs/MaterialToggleSwitch.svelte"
-    import WebSearch from "./WebSearch.svelte"
+    import SongSearch from "./SongSearch.svelte"
 
     const changeValue = (e: any, key = "text") => {
         values[key] = e.target?.value || e.detail || ""
@@ -28,6 +29,7 @@
         quickTextCache.set({ name: values.name, text: values.text })
     }
     let storedCache = $quickTextCache.text.length > 20 || $quickTextCache.fromSearch
+    let worshipToolSource: WorshipToolSongSource | undefined
     let values = {
         text: storedCache ? $quickTextCache.text : "",
         name: storedCache ? $quickTextCache.name : "",
@@ -120,6 +122,7 @@
             values.name = data.title
         }
 
+        worshipToolSource = data.worshipTool
         values.text = data.lyrics
 
         const metadata: string[] = []
@@ -134,6 +137,7 @@
     // CREATE
 
     let showMore = false
+    let maxLines = 2
 
     function textToShow() {
         let text = values.text
@@ -146,7 +150,11 @@
         let category = selectedCategory?.id?.length ? selectedCategory.id : null
 
         if (sections.length) {
-            convertText({ name: values.name, category, text, origin: values.origin })
+            if (!Number.isInteger(maxLines) || maxLines < 1 || maxLines > 100) {
+                newToast("每頁最多行數需為 1–100 的整數。")
+                return
+            }
+            convertText({ name: values.name, category, text, origin: values.origin, worshipTool: worshipToolSource, maxLines })
         } else {
             let show = new ShowObj(false, category)
             show.name = checkName(values.name)
@@ -162,7 +170,7 @@
     // SHORTCUTS
 
     function keydown(e: KeyboardEvent) {
-        if (e.shiftKey || e.altKey) return
+        if (e.isComposing || e.keyCode === 229 || e.shiftKey || e.altKey) return
 
         const ctrl = e.ctrlKey || e.metaKey
 
@@ -175,6 +183,8 @@
         }
 
         if (e.key === "Enter") {
+            // Keep name entry in place, including the Enter used to confirm Chinese input.
+            if (!ctrl && e.target?.closest?.("#name")) return
             if (!ctrl && e.target?.closest?.(".edit") && !document.activeElement?.closest?.("#name")) return
 
             e.preventDefault()
@@ -222,9 +232,11 @@
 {/if}
 
 {#if selectedOption === "text"}
-    <MaterialButton class="popup-options {showMore ? 'active' : ''}" icon="options" iconSize={1.3} title={showMore ? "actions.close" : "create_show.more_options"} on:click={() => (showMore = !showMore)} white>
-        {#if Number($splitLines)}<span class="state">{$splitLines}</span>{/if}
-    </MaterialButton>
+    <MaterialButton class="popup-options {showMore ? 'active' : ''}" icon="options" iconSize={1.3} title={showMore ? "actions.close" : "create_show.more_options"} on:click={() => (showMore = !showMore)} white />
+
+    <div style="width: min(100%, 14em);margin-bottom: 16px;">
+        <MaterialNumberInput label="每頁最多行數" value={maxLines} min={1} max={100} maxDecimals={0} on:change={(event) => (maxLines = Number(event.detail))} />
+    </div>
 
     <MaterialTextarea label="create_show.quick_lyrics" placeholder={getQuickExample()} value={values.text} autofocus={!values.text} rows={showMore ? 6 : Math.max(6, Math.min(12, values.text.split("\n").length))} on:input={(e) => changeValue(e)} />
     <!-- WIP buttons for paste / format(remove chords, remove empty lines), etc. -->
@@ -233,13 +245,12 @@
         <List top={5}>
             <MaterialToggleSwitch label="create_show.auto_groups" checked={$special.autoGroups !== false} defaultValue={true} on:change={(e) => special.set({ ...$special, autoGroups: e.detail })} />
             <MaterialToggleSwitch label="create_show.format_new_show" checked={$formatNewShow} defaultValue={false} on:change={(e) => formatNewShow.set(e.detail)} />
-            <MaterialNumberInput label="create_show.split_lines" value={$splitLines} max={100} on:change={(e) => splitLines.set(e.detail)} hideWhenZero />
         </List>
     {/if}
 
-    <MaterialButton on:click={textToShow} variant="contained" title="timer.create [Ctrl+Enter]" disabled={values.text.trim().length === 0} info={getName(values) || translateText("main.unnamed")} style="width: 100%;margin-top: 20px;" icon="add" data-testid="create.show.popup.new.show">
+    <MaterialButton on:click={textToShow} variant="contained" title="timer.create [Ctrl+Enter]" disabled={values.text.trim().length === 0 || !Number.isInteger(maxLines) || maxLines < 1 || maxLines > 100} info={getName(values) || translateText("main.unnamed")} style="width: 100%;margin-top: 20px;" icon="add" data-testid="create.show.popup.new.show">
         <T id="timer.create" />
     </MaterialButton>
 {:else if selectedOption === "web"}
-    <WebSearch query={values.name} on:update={updateLyrics} />
+    <SongSearch query={values.name} on:update={updateLyrics} />
 {/if}

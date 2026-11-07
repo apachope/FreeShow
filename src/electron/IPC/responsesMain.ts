@@ -1,3 +1,4 @@
+import { requestWorshipTool } from "../utils/WorshipTool"
 import * as Sentry from "@sentry/electron/main"
 import type { BrowserWindow, DesktopCapturerSource } from "electron"
 import { app, desktopCapturer, screen, shell, systemPreferences } from "electron"
@@ -163,6 +164,7 @@ export const mainResponses: MainResponses = {
     // LYRICS
     [Main.GET_LYRICS]: (data) => getLyrics(data),
     [Main.SEARCH_LYRICS]: (data) => searchLyrics(data),
+    [Main.WORSHIP_TOOL]: (data) => requestWorshipTool(data),
     // FILES
     [Main.RESTORE]: (data) => restoreFiles(data),
     [Main.RECORDER]: (data) => saveRecording(data),

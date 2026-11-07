@@ -1,3 +1,4 @@
+import { DEFAULT_WORSHIP_TOOL_URL } from "../../types/WorshipTool"
 import type { SaveListSettings, SaveListSyncedSettings } from "../../types/Save"
 
 export const defaultConfig = { loaded: false, maximized: true, bounds: { width: 800, height: 600, x: 0, y: 0 }, dataPath: null, disableHardwareAcceleration: null, graphicsDevice: null }
@@ -74,7 +75,7 @@ export const defaultSettings: { [key in SaveListSettings]: any } = {
     audioEffects: {},
     audioEffectPresets: {},
     effectsLibrary: [],
-    special: {},
+    special: { worshipToolUrl: DEFAULT_WORSHIP_TOOL_URL },
     timeline: {},
     timecode: {},
     contentProviderData: {

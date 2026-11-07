@@ -48,7 +48,7 @@ export function convertTexts(files: { content: string; name?: string; extension?
 
 // convert a plain text input into a show
 // , onlySlides: boolean = false, { existingSlides } = { existingSlides: {} }
-export function convertText({ name = "", origin = "", category = null, text, noFormatting = false, returnData = false, open = true }: any) {
+export function convertText({ name = "", origin = "", category = null, text, noFormatting = false, returnData = false, open = true, worshipTool = undefined, maxLines = get(splitLines) }: any) {
     // remove empty spaces (as groups [] should be used for empty slides)
     // in "Text edit" spaces can be used to create empty "child" slides
     text = text.replaceAll("\r", "").replaceAll("\n \n", "\n\n")
@@ -142,7 +142,7 @@ export function convertText({ name = "", origin = "", category = null, text, noF
     let show: Show = new ShowObj(false, category, layoutID)
     if (origin) show.origin = origin
     // , existingSlides
-    const { slides, layouts } = createSlides(labeled, noFormatting, autoGroups)
+    const { slides, layouts } = createSlides(labeled, noFormatting, autoGroups, maxLines)
 
     // if (onlySlides) return { slides, layouts }
 
@@ -175,6 +175,15 @@ export function convertText({ name = "", origin = "", category = null, text, noF
     }
 
     if (plainNotes) show.layouts[layoutID].notes = plainNotes
+
+    if (worshipTool)
+        show.quickAccess = {
+            ...show.quickAccess,
+            worshipTool: {
+                ...worshipTool,
+                ...(Number.isInteger(maxLines) && maxLines > 0 ? { layouts: { ...worshipTool.layouts, [String(maxLines)]: layoutID } } : {})
+            }
+        }
 
     const showId = uid()
     if (returnData) return { id: showId, show }
@@ -412,7 +421,7 @@ function insertChordsIntoLyrics(chordLine: string, lyricLine: string): string {
 
 // TODO: this sometimes splits all slides up with no children (when adding [group])
 // , existingSlides = {}
-function createSlides(labeled: { type: string; text: string }[], noFormatting: boolean, autoGroups: boolean) {
+function createSlides(labeled: { type: string; text: string }[], noFormatting: boolean, autoGroups: boolean, maxLines: number) {
     const slides: { [key: string]: Slide } = {}
     const layouts: SlideData[] = []
 
@@ -487,9 +496,9 @@ function createSlides(labeled: { type: string; text: string }[], noFormatting: b
         const slideLines = allLines[0].split("\n").filter(Boolean)
 
         // split lines into a set amount of lines
-        if (Number(get(splitLines)) && slideLines.length > get(splitLines)) {
+        if (Number(maxLines) && slideLines.length > maxLines) {
             allLines = []
-            while (slideLines.length) allLines.push(slideLines.splice(0, get(splitLines)).join("\n"))
+            while (slideLines.length) allLines.push(slideLines.splice(0, maxLines).join("\n"))
         }
 
         const children: string[] = []
