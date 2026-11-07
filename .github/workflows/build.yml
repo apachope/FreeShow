@@ -12,14 +12,14 @@ permissions:
 jobs:
   version:
     name: Determine release version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v5
       - name: Generate Taiwan date and daily build number
         id: version
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { data: run } = await github.rest.actions.getWorkflowRun({
@@ -35,7 +35,7 @@ jobs:
               workflow_id: run.workflow_id,
               created: `${start.toISOString()}..${end.toISOString()}`,
               per_page: 100
-            }, response => response.data.workflow_runs);
+            });
             const dailyNumber = run.run_number - Math.min(run.run_number,
               ...runs.map(item => item.run_number)) + 1;
             const upstream = require('./package.json').version.replace(/[-.]apachope\..*$/, '');
