@@ -96,16 +96,20 @@ npm version 1.6.8 --no-git-tag-version
 Commit both `package.json` and `package-lock.json`. Custom builds need no manual
 version changes.
 
-Every push to `main` (including merged pull requests) runs the **Build Installers**
+Every push to `main` (including merged pull requests) runs the **Release**
 GitHub Actions workflow. It can also be started manually from the Actions tab.
-The workflow builds Windows x64 (`.exe`), macOS Intel (`.dmg` and `.zip`), and
+Manual releases must also target `main`. The workflow builds Windows x64 (`.exe`), macOS Intel (`.dmg` and `.zip`), and
 macOS Apple Silicon (`.dmg` and `.zip`) on separate runners.
 
 Download the corresponding artifact from the completed workflow run's **Artifacts**
 section. Artifacts are retained for 14 days. These builds use `release:local`, are
-unsigned and not notarized, and do not publish a GitHub Release. Windows and macOS
-may display security prompts when opening them. The signed **Release** workflow
-is manual and requires the appropriate signing and publishing credentials.
+unsigned and not notarized. Windows and macOS may display security prompts when
+opening them. After all three builds succeed, the workflow publishes a GitHub
+pre-release tagged `v<version>` with all five installer/archive files under
+**Releases → Assets**. Release assets remain available after Actions artifacts
+expire. Publishing uses the built-in `GITHUB_TOKEN`; no signing secrets are needed.
+Re-running a release replaces assets under the same tag. The **Build** workflow
+remains a manual Windows/macOS/Linux compilation check without installers.
 
 ## Join us on Slack
 
