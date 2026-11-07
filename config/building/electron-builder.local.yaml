@@ -1,5 +1,7 @@
 extends: config/building/electron-builder.yaml
 
+afterSign: null
+
 win:
     azureSignOptions: null
 

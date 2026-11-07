@@ -74,6 +74,39 @@ You are welcome to contribute to the code!
 6. In the terminal, run: `npm install`
 7. To start the app, run: `npm start`
 
+## Build installers
+
+Keep the upstream version in `package.json` and `package-lock.json`. Actions adds
+`apachope.YYYYMMDD.N` at build time, using the workflow creation date in
+Asia/Taipei and the workflow's daily run number. For example, upstream
+`1.6.8-beta.3` produces `1.6.8-beta.3.apachope.20261107.1`; stable `1.6.8`
+produces `1.6.8-apachope.20261107.1`. All platforms share the same version.
+
+The daily number starts at 1, includes failed and manual runs, and resets on the
+next Taiwan calendar day. Re-running the same workflow keeps its version. Keep
+the day's workflow run history until its builds finish so numbering stays stable.
+Generated versions are not committed back to the repository.
+
+Only when integrating an upstream release, update both package files, for example:
+
+```bash
+npm version 1.6.8 --no-git-tag-version
+```
+
+Commit both `package.json` and `package-lock.json`. Custom builds need no manual
+version changes.
+
+Every push to `main` (including merged pull requests) runs the **Build Installers**
+GitHub Actions workflow. It can also be started manually from the Actions tab.
+The workflow builds Windows x64 (`.exe`), macOS Intel (`.dmg` and `.zip`), and
+macOS Apple Silicon (`.dmg` and `.zip`) on separate runners.
+
+Download the corresponding artifact from the completed workflow run's **Artifacts**
+section. Artifacts are retained for 14 days. These builds use `release:local`, are
+unsigned and not notarized, and do not publish a GitHub Release. Windows and macOS
+may display security prompts when opening them. The signed **Release** workflow
+is manual and requires the appropriate signing and publishing credentials.
+
 ## Join us on Slack
 
 If you would like to get involved contributing in any way, head over to our [Slack Channel](https://join.slack.com/t/livechurchsolutions/shared_invite/zt-i88etpo5-ZZhYsQwQLVclW12DKtVflg) and introduce yourself. We'd love to hear from you.
