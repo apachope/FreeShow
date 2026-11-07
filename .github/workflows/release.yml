@@ -1,11 +1,79 @@
 name: Release
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
-  publish_windows:
-    name: "Publish Windows"
-    runs-on: windows-2022
+  version:
+    if: github.ref == 'refs/heads/main'
+    name: Determine release version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Generate Taiwan date and daily build number
+        id: version
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { data: run } = await github.rest.actions.getWorkflowRun({
+              ...context.repo, run_id: context.runId
+            });
+            // Use the original run creation time so retries keep the same version.
+            const date = new Date(Date.parse(run.created_at) + 8 * 60 * 60 * 1000)
+              .toISOString().slice(0, 10);
+            const start = new Date(`${date}T00:00:00+08:00`);
+            const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
+            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              ...context.repo,
+              workflow_id: run.workflow_id,
+              created: `${start.toISOString()}..${end.toISOString()}`,
+              per_page: 100
+            });
+            const dailyNumber = run.run_number - Math.min(run.run_number,
+              ...runs.map(item => item.run_number)) + 1;
+            const upstream = require('./package.json').version.replace(/[-.]apachope\..*$/, '');
+            const separator = upstream.includes('-') ? '.' : '-';
+            const version = `${upstream}${separator}apachope.${date.replaceAll('-', '')}.${dailyNumber}`;
+            core.setOutput('version', version);
+            await core.summary.addHeading('Installer version').addRaw(version).write();
+
+  build:
+    needs: version
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-2022
+            args: --win --x64
+            artifact: FreeShow-Windows-x64
+            files: dist/*.exe
+          - name: macOS Intel
+            os: macos-15-intel
+            args: --mac --x64
+            artifact: FreeShow-macOS-x64
+            files: |
+              dist/*.dmg
+              dist/*.zip
+          - name: macOS Apple Silicon
+            os: macos-15
+            args: --mac --arm64
+            artifact: FreeShow-macOS-arm64
+            files: |
+              dist/*.dmg
+              dist/*.zip
 
     steps:
       - name: Check out Git repository
@@ -16,125 +84,76 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build and release app
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-        run: npm run release
-
-  publish_linux:
-    name: "Publish Linux x64"
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v5
-
-      - name: Install Node.js and NPM
-        uses: actions/setup-node@v5
-        with:
-          node-version: 22
-
-      - name: Install libraries
-        run:
-          |
-          sudo apt-get update
-          sudo apt-get install -y libfontconfig1-dev uuid-dev libltc-dev libegl1-mesa-dev libgles2-mesa-dev --fix-missing
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build and release app
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run release
-
-  # This needs it's own build
-  # https://github.com/ChurchApps/FreeShow/issues/562
-  publish_linux_arm:
-    name: "Publish Linux arm64"
-    runs-on: ubuntu-24.04-arm
-
-    steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v5
-
-      - name: Install Node.js and NPM
-        uses: actions/setup-node@v5
-        with:
-          node-version: 22
-
-      - name: Install libraries
-        run:
-          |
-          sudo apt-get update
-          sudo apt-get install -y libfontconfig1-dev uuid-dev libltc-dev libegl1-mesa-dev libgles2-mesa-dev --fix-missing
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install FPM
-        run:
-          |
-          sudo apt-get install ruby ruby-dev build-essential
-          sudo gem install --no-document fpm
-
-      # wait because this will only publish if the draft exists
-      - name: Sleep for 1.5 minute
-        run: sleep 90s
-        shell: bash
-
-      - name: Build and release app
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          USE_SYSTEM_FPM: true
-        run: npm run release
-
-  publish_mac:
-    name: "Publish MacOS"
-    runs-on: macos-latest
-
-    steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v5
-
-      - name: Install Node.js and NPM
-        uses: actions/setup-node@v5
-        with:
-          node-version: 22
-
-      # Change Python version: https://github.com/nodejs/node-gyp/issues/2869
-      - name: Install Python 3.11
+      - name: Install Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
-      # This probably does not make any difference.
-      - name: Install node-gyp
-        run: npm install -g node-gyp
+      - name: Install Python build tools
+        run: python -m pip install setuptools
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Install dmg-license
-        run: npm i dmg-license
-
-      # for some reason the build command don't continue after the rollup build
-      - name: Sleep for 3 minutes
-        run: sleep 180
+      - name: Apply release version
+        env:
+          RELEASE_VERSION: ${{ needs.version.outputs.version }}
+        run: npm version "$RELEASE_VERSION" --no-git-tag-version --ignore-scripts
         shell: bash
 
-      - name: Build and release app
+      - name: Build installers
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLEID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLEIDPASS }}
-          APPLE_TEAM_ID: ${{ secrets.APPLETEAMID }}
-        run: npm run release
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npm run release:local -- ${{ matrix.args }}
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}-${{ needs.version.outputs.version }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish GitHub Release
+    needs: [version, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Download installers
+        uses: actions/download-artifact@v5
+        with:
+          pattern: FreeShow-*-${{ needs.version.outputs.version }}
+          path: installers
+          merge-multiple: true
+
+      - name: Publish installers to Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ needs.version.outputs.version }}
+          RELEASE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v${RELEASE_VERSION}"
+          shopt -s nullglob
+          files=(installers/*.exe installers/*.dmg installers/*.zip)
+          if [ "${#files[@]}" -ne 5 ]; then
+            echo "Expected Windows installer and DMG/ZIP for each Mac architecture."
+            exit 1
+          fi
+          cat > release-notes.md <<'NOTES'
+          Custom FreeShow build for Windows x64, macOS Intel, and macOS Apple Silicon.
+
+          Download the installer for your system from Assets below.
+          These installers are unsigned and not notarized; your operating system may display security prompts.
+          NOTES
+          if ! gh release view "$tag" > /dev/null 2>&1; then
+            gh release create "$tag" --target "$RELEASE_SHA" --title "FreeShow $RELEASE_VERSION" --notes-file release-notes.md --prerelease --draft
+          fi
+          gh release upload "$tag" "${files[@]}" --clobber
+          gh release edit "$tag" --draft=false --prerelease
+          gh release view "$tag" --json url --jq '.url' >> "$GITHUB_STEP_SUMMARY"
